@@ -1,0 +1,47 @@
+# himalaya account config for the Hermes email skill (skills/email/himalaya).
+#
+# Baked into the image at /etc/himalaya/config.toml rather than written to the
+# /data volume: Railway has no exec shell for a deployed service, so a file
+# that has to be created by hand is a file that never gets created. HIMALAYA_CONFIG
+# in the Dockerfile points here.
+#
+# No secret lives in this file. Both auth blocks shell out to
+# `printenv EMAIL_APP_PASSWORD`, which is a Railway service variable holding a
+# Gmail app password (not the account password).
+#
+# Syntax is himalaya v1.x — see the pin and the reason for it in the Dockerfile.
+
+[accounts.gmail]
+default = true
+email = "kaloyanomax@gmail.com"
+display-name = "Kaloyan"
+
+backend.type = "imap"
+backend.host = "imap.gmail.com"
+backend.port = 993
+backend.encryption.type = "tls"
+backend.login = "kaloyanomax@gmail.com"
+backend.auth.type = "password"
+backend.auth.cmd = "printenv EMAIL_APP_PASSWORD"
+
+message.send.backend.type = "smtp"
+message.send.backend.host = "smtp.gmail.com"
+message.send.backend.port = 465
+message.send.backend.encryption.type = "tls"
+message.send.backend.login = "kaloyanomax@gmail.com"
+message.send.backend.auth.type = "password"
+message.send.backend.auth.cmd = "printenv EMAIL_APP_PASSWORD"
+
+# Gmail files SMTP-sent mail into Sent Mail on its own; letting himalaya also
+# IMAP-append would store every sent message twice.
+message.send.save-copy = false
+
+# Gmail's folders are not himalaya's canonical names. Without this block `sent`
+# resolves to a folder that does not exist, so `message send` exits non-zero
+# AFTER SMTP has already delivered — and anything that retries on that exit
+# code sends the mail a second time. save-copy = false avoids that path today;
+# these aliases also make reading Sent/Drafts/Trash work at all.
+folder.aliases.inbox = "INBOX"
+folder.aliases.sent = "[Gmail]/Sent Mail"
+folder.aliases.drafts = "[Gmail]/Drafts"
+folder.aliases.trash = "[Gmail]/Trash"

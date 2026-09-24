@@ -157,11 +157,16 @@ ENV HERMES_HOME=/data/.hermes
 
 # Where himalaya looks for its account config. v1.x reads this env var (it is
 # the `-c/--config` flag's [env:] binding); without it himalaya falls back to
-# $HOME/.config/himalaya/config.toml. /data is the Railway volume, so the
-# config outlives redeploys — which matters because the container filesystem
-# does not. The file itself holds no secret: it shells out to
-# `printenv EMAIL_APP_PASSWORD` for the Gmail app password.
-ENV HIMALAYA_CONFIG=/data/himalaya/config.toml
+# $HOME/.config/himalaya/config.toml.
+#
+# The config is baked into the image, NOT written to /data. Railway gives a
+# deployed service no exec shell, so a config that has to be hand-created in
+# the container is a config that never exists. Nothing secret is in it — it
+# shells out to `printenv EMAIL_APP_PASSWORD` (a Railway service variable) for
+# the Gmail app password. Editing it means editing himalaya/config.toml here
+# and redeploying, which is the same round trip as any other config in this repo.
+COPY himalaya/config.toml /etc/himalaya/config.toml
+ENV HIMALAYA_CONFIG=/etc/himalaya/config.toml
 
 # Points hermes at our pre-built TUI bundle. hermes's _make_tui_argv checks
 # HERMES_TUI_DIR first: if dist/entry.js exists there, it skips the npm
