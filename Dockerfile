@@ -38,6 +38,25 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
+# himalaya CLI — the binary behind hermes' bundled skills/email/himalaya skill.
+# The skill declares `prerequisites.commands: [himalaya]`, so it only surfaces
+# to the agent once this binary is on PATH; nothing else needs enabling.
+#
+# PINNED to v1.2.0 on purpose. Upstream's install.sh always pulls the LATEST
+# release, which is now v2.x — and v2.0.0 rewrote the config schema
+# (backend.type / message.send.backend.* became imap.server /
+# smtp.sasl.plain.password.command) and renamed subcommands. The SKILL.md that
+# ships inside this hermes release documents the v1.x syntax, so a v2 binary
+# would leave the agent confidently writing configs and commands the binary
+# rejects. Re-read skills/email/himalaya/ on every HERMES_REF bump before
+# moving this pin.
+#
+# `himalaya --version` in the same layer turns a bad URL or a corrupt tarball
+# into a build failure here instead of a runtime one.
+RUN curl -sSL "https://github.com/pimalaya/himalaya/releases/download/v1.2.0/himalaya.$(uname -m)-linux.tgz" \
+      | tar -xz -C /usr/local/bin himalaya && \
+    himalaya --version
+
 # Install hermes-agent (provides the `hermes` CLI) and pre-build its React
 # dashboard so `hermes dashboard` has nothing to build at runtime.
 #
@@ -135,6 +154,14 @@ RUN chmod +x /app/start.sh
 
 ENV HOME=/data
 ENV HERMES_HOME=/data/.hermes
+
+# Where himalaya looks for its account config. v1.x reads this env var (it is
+# the `-c/--config` flag's [env:] binding); without it himalaya falls back to
+# $HOME/.config/himalaya/config.toml. /data is the Railway volume, so the
+# config outlives redeploys — which matters because the container filesystem
+# does not. The file itself holds no secret: it shells out to
+# `printenv EMAIL_APP_PASSWORD` for the Gmail app password.
+ENV HIMALAYA_CONFIG=/data/himalaya/config.toml
 
 # Points hermes at our pre-built TUI bundle. hermes's _make_tui_argv checks
 # HERMES_TUI_DIR first: if dist/entry.js exists there, it skips the npm
